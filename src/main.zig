@@ -1,6 +1,7 @@
 const std = @import("std");
 const testing = std.testing;
 
+pub const terminfo = @import("terminfo.zig");
 const History = @import("history.zig");
 const terminal = @import("terminal.zig");
 const Self = @This();

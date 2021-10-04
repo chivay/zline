@@ -24,4 +24,14 @@ pub fn build(b: *std.build.Builder) void {
     });
     simple_example.setBuildMode(mode);
     simple_example.install();
+
+    const terminfo_example = b.addExecutable("terminfo-example", "examples/terminfo.zig");
+    terminfo_example.linkSystemLibrary("ncurses");
+    terminfo_example.linkLibC();
+    terminfo_example.addPackage(.{
+        .name = "zline",
+        .path = .{ .path = "src/main.zig" },
+    });
+    terminfo_example.setBuildMode(mode);
+    terminfo_example.install();
 }
