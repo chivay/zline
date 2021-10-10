@@ -9,5 +9,5 @@ pub fn main() anyerror!void {
     var def = try zline.terminfo.loadTerm(&gpa.allocator);
     defer def.deinit();
 
-    std.debug.print("{}", .{std.fmt.fmtSliceEscapeUpper(def.getString(.cursor_down).?)});
+    std.debug.print("{s}", .{(def.getString(.key_backspace).?)});
 }

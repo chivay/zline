@@ -13,10 +13,6 @@ pub const RawContext = struct {
         var old_termios: linux.termios = undefined;
         _ = linux.tcgetattr(handle, &old_termios);
 
-        const x = c.tgetent(null, "alacritty");
-        _ = x;
-        //std.debug.print("{*}", .{buffer});
-
         var new_termios = old_termios;
         //new_termios.iflag &= ~@as(u32, linux.BRKINT | linux.ICRNL | linux.INPCK | linux.ISTRIP | linux.IXON);
         new_termios.oflag &= ~@as(u32, linux.OPOST);

@@ -7,45 +7,71 @@ const terminal = @import("terminal.zig");
 const Self = @This();
 
 alloc: *std.mem.Allocator,
-handle: std.os.fd_t,
+file: std.fs.File,
 history: History,
+terminfo: terminfo.TermInfo,
 
-pub fn init(allocator: *std.mem.Allocator, handle: std.os.fd_t) Self {
-    return .{
+buffer: std.ArrayList(u8),
+message: ?[]const u8,
+
+pub fn init(allocator: *std.mem.Allocator, file: std.fs.File) !Self {
+    const tinfo = try terminfo.loadTerm(allocator);
+    return Self{
         .alloc = allocator,
-        .handle = handle,
+        .file = file,
         .history = .{},
+        .terminfo = tinfo,
+        .buffer = std.ArrayList(u8).init(allocator),
+        .message = null,
     };
 }
 
-pub fn get(self: *Self) ![]u8 {
-    const raw_context = terminal.RawContext.enter(self.handle);
-    defer raw_context.exit();
+fn redraw(self: *Self) !void {
+    const writer = self.file.writer();
 
-    const dims = try terminal.get_dimensions(self.handle);
-    _ = dims;
-
-    const reader = std.io.getStdIn().reader();
-    const writer = std.io.getStdOut().writer();
-    while (true) {
-        const c = try reader.readByte();
-        if (!std.ascii.isCntrl(c)) {
-            try writer.writeByte(c);
-        }
-        if (c == '\n') break;
+    try writer.writeAll(self.terminfo.getString(.carriage_return).?);
+    try writer.writeAll(self.terminfo.getString(.clr_eol).?);
+    if (self.message) |msg| {
+        try writer.writeAll(msg);
     }
-    try writer.writeByte('\n');
-
-    //self.history.add(entry);
-    return "";
+    try writer.writeAll(self.buffer.items);
 }
 
 pub fn prompt(self: *Self, message: []const u8) ![]u8 {
-    const writer = std.io.getStdOut().writer();
-    try writer.writeAll(message);
-    return try self.get();
+    self.message = message;
+    const raw_context = terminal.RawContext.enter(self.file.handle);
+    defer raw_context.exit();
+
+    const reader = self.file.reader();
+    const writer = self.file.writer();
+
+    self.buffer.clearRetainingCapacity();
+    while (true) {
+        try self.redraw();
+
+        const c = try reader.readByte();
+        if (!std.ascii.isCntrl(c)) {
+            try self.buffer.append(c);
+            try writer.writeByte(c);
+        } else if (c == 0x7f) {
+            _ = self.buffer.pop();
+        } else {
+            std.debug.print("unknown character: {x}\n", .{c});
+        }
+        if (c == '\n') break;
+    }
+
+    try writer.writeAll(self.terminfo.getString(.carriage_return).?);
+    try writer.writeAll(self.terminfo.getString(.newline).?);
+
+    self.history.add(self.buffer.items);
+    return self.buffer.items;
 }
 
-pub fn destroy(self: *Self, buffer: []const u8) void {
-    self.alloc.free(buffer);
+pub fn get(self: *Self) ![]u8 {
+    return self.prompt("");
+}
+
+pub fn destroy(self: *Self) void {
+    self.buffer.deinit();
 }

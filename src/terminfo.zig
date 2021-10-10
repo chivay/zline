@@ -490,7 +490,7 @@ comptime {
     std.debug.assert(@sizeOf(TerminfoHeader) == 12);
 }
 
-const TermInfo = struct {
+pub const TermInfo = struct {
     alloc: *std.mem.Allocator,
     name: []const u8,
     strings: [394]?[]const u8,
@@ -605,6 +605,7 @@ pub fn loadDefinition(alloc: *std.mem.Allocator, source: anytype) !TermInfo {
 }
 
 pub fn loadTerm(alloc: *std.mem.Allocator) !TermInfo {
+    // TODO implement search algorithm
     const terminal = std.os.getenv("TERM") orelse "ansi";
     const path = try std.fmt.allocPrint(alloc, "/usr/share/terminfo/{c}/{s}", .{ terminal[0], terminal });
     defer alloc.free(path);

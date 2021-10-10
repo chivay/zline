@@ -6,16 +6,19 @@ pub fn main() anyerror!void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(!gpa.deinit());
 
-    var line: zline = zline.init(&gpa.allocator, std.os.linux.STDIN_FILENO);
+    var line: zline = try zline.init(&gpa.allocator, std.io.getStdOut());
+    defer line.destroy();
 
     {
         while (true) {
             const x = line.prompt("> ") catch |err| {
-                std.debug.print("\nPrompt failed with error {}\n", .{err});
+                std.debug.print("Prompt failed with error {}\n", .{err});
                 return;
             };
-            defer line.destroy(x);
             std.debug.print("Received: {s}\n", .{x});
+            if (std.mem.eql(u8, "exit", x)) {
+                break;
+            }
         }
     }
 }
